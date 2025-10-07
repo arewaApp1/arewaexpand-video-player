@@ -22,7 +22,7 @@ MDScreenManager:
     FolderScreen:
     VideoListScreen:
     VideoPlayerScreen:
-
+buildozer.spec.txt
 
 <FolderScreen>:
     name: "folders"
@@ -296,4 +296,5 @@ class VideoPlayerApp(MDApp):
 
 
 if __name__ == "__main__":
+
     VideoPlayerApp().run()
