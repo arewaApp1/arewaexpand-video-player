@@ -1,92 +1,20 @@
-﻿[app]
-# (str) Sunan app ɗinka
-title = AEX Videos Player
-
-
-# (str) Sunan package (ba spaces ko babban harafi)
-package.name = aexvideos
-
-
-# (str) Domain ɗinka (zaka iya barin haka)
-package.domain = org.arewaexpand
-
-
-# (str) Version ɗin app
-version = 1.0.0
-
-
-# (str) Babban folder ɗin app ɗinka
+[app]
+title = AEX Video Player
+package.name = aexvideoplayer
+package.domain = org.arewa
 source.dir = .
-
-
-# (list) Wadanne extensions za a saka cikin app
-source.include_exts = py, kv, jpg, png, ttf, mp4
-
-
-# (list) Libraries da app ɗinka yake amfani da su
-requirements = python3,kivy==2.2.1,kivymd,ffpyplayer,pillow
-
-
-# (list) Permissions da ake bukata a Android
-android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, INTERNET, WAKE_LOCK
-
-
-# (str) Icon ɗin app (idan kana da icon.png)
-icon.filename = %(source.dir)s/icon.png
-
-
-# (bool) App ɗinka zai iya kunna audio/video
-android.media_codecs = true
-
-
-# (str) Orientation na app
+source.include_exts = py, png, jpg, kv, atlas
+version = 0.1
+requirements = python3, kivy
 orientation = portrait
-
-
-# (bool) Ka bar app ya ci gaba idan an matsa “Back”
-exit_on_back = False
-
-
-# (str) Ƙarshen tsarin da za a build (APK ko AAB)
-android.release_artifact = APK
-
-
-# (list) Architecture – domin sabbin androids
-android.archs = arm64-v8a, armeabi-v7a
-
-
-# (int) Android API Level
-android.api = 33
-android.minapi = 21
-
-
-# (bool) Ka sa buildozer ya sign ɗin app ɗin kai tsaye
-android.sign_release = False
-
-
-# (str) Sunan fayil ɗin da za a fitar
-package.version.filename = AEXVideosPlayer
-
-
-# (bool) Barin buildozer ya saka log da warnings
-log_level = 2
-warn_on_root = 1
-
-
-
+fullscreen = 0
 
 [buildozer]
-# (bool) An kunna log
 log_level = 2
-
-
-# (bool) Kada a rufe app yayin run
 warn_on_root = 1
-
-
-# (str) Environment na build
-build_dir = .buildozer
-
-
-# (str) Kayan da ake amfani da su wajen build
-bin_dir = bin
+android.api = 33
+android.minapi = 21
+android.sdk = 33
+android.ndk = 25b
+android.arch = arm64-v8a
+android.build_tools = 33.0.2
