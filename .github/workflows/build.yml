@@ -2,9 +2,8 @@ name: Build AEX Video Player APK
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   build:
@@ -21,19 +20,25 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk
-          pip install --upgrade pip
-          pip install buildozer cython
+          python -m pip install --upgrade pip
+          pip install buildozer cython virtualenv
 
-      - name: Pre-create Android SDK and accept licenses
+      - name: Install Android SDK (cmdline-tools)
         run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          cd ~/.buildozer/android/platform/android-sdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmdline.zip
-          unzip -q cmdline.zip -d cmdline-tools
-          mv cmdline-tools/cmdline-tools cmdline-tools/latest
-          yes | cmdline-tools/latest/bin/sdkmanager --sdk_root=$(pwd) --licenses || true
+          sudo apt-get update -y
+          sudo apt-get install -y unzip openjdk-17-jdk
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools.zip
+          mv cmdline-tools latest
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+
+      - name: Set environment variables
+        run: |
+          echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
       - name: Build APK
         run: |
