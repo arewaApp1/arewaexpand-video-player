@@ -53,14 +53,13 @@ jobs:
           echo "PATH=$PATH:$HOME/.local/bin:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:$HOME/.buildozer/android/platform/android-sdk/platform-tools" >> $GITHUB_ENV
 
       - name: Build APK
-        run: |
-          export PATH=$PATH:$HOME/.local/bin:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
-          export ANDROIDSDK=$HOME/.buildozer/android/platform/android-sdk
-          export ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b
-          export ANDROIDAPI=33
-          export NDKAPI=21
-          buildozer android debug
-
+  run: |
+    export PATH=$PATH:$HOME/.local/bin:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+    chmod +x scripts/fix_buildozer_sdk.sh
+    ./scripts/fix_buildozer_sdk.sh
+    yes | sdkmanager --licenses || true
+    yes | sdkmanager "platforms;android-33" "build-tools;33.0.2" || true
+    buildozer android debug
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
