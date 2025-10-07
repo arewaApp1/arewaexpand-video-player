@@ -1,0 +1,299 @@
+﻿import os
+from kivy.uix.video import Video
+from kivy.clock import Clock
+from kivy.core.window import Window
+from kivy.properties import StringProperty, NumericProperty
+from kivy.utils import platform
+from kivy.lang import Builder
+
+
+from kivymd.app import MDApp
+from kivymd.uix.list import TwoLineAvatarListItem, ImageLeftWidget
+from kivymd.uix.screen import MDScreen
+
+
+from ffpyplayer.tools import ffprobe
+from ffpyplayer.player import MediaPlayer
+from PIL import Image
+
+
+KV = '''
+MDScreenManager:
+    FolderScreen:
+    VideoListScreen:
+    VideoPlayerScreen:
+
+
+<FolderScreen>:
+    name: "folders"
+    MDBoxLayout:
+        orientation: "vertical"
+        MDTopAppBar:
+            title: "Video Folders"
+        ScrollView:
+            MDList:
+                id: folder_list
+
+
+<VideoListScreen>:
+    name: "videos"
+    folder_name: "Videos"
+    MDBoxLayout:
+        orientation: "vertical"
+        MDTopAppBar:
+            title: root.folder_name
+            left_action_items: [["arrow-left", lambda x: app.go_back()]]
+        ScrollView:
+            MDList:
+                id: video_list
+
+
+<VideoPlayerScreen>:
+    name: "player"
+    video_name: "Player"
+    MDBoxLayout:
+        orientation: "vertical"
+        MDTopAppBar:
+            title: root.video_name
+            left_action_items: [["arrow-left", lambda x: app.go_back()]]
+        BoxLayout:
+            id: video_box
+            size_hint_y: 0.8
+        MDBoxLayout:
+            size_hint_y: 0.2
+            orientation: "vertical"
+            MDBoxLayout:
+                spacing: "10dp"
+                MDIconButton:
+                    icon: "skip-previous"
+                    on_release: app.play_previous()
+                MDIconButton:
+                    icon: "play"
+                    on_release: app.play_video()
+                MDIconButton:
+                    icon: "pause"
+                    on_release: app.pause_video()
+                MDIconButton:
+                    icon: "stop"
+                    on_release: app.stop_video()
+                MDIconButton:
+                    icon: "skip-next"
+                    on_release: app.play_next()
+                MDIconButton:
+                    icon: "fullscreen"
+                    on_release: app.toggle_fullscreen()
+            MDSlider:
+                id: slider
+                min: 0
+                max: 100
+                value: 0
+                on_touch_up: app.seek_video(*args)
+            MDBoxLayout:
+                Label:
+                    id: current_time
+                    text: "00:00"
+                Label:
+                    id: total_time
+                    text: "00:00"
+'''
+
+
+class FolderScreen(MDScreen):
+    pass
+
+
+class VideoListScreen(MDScreen):
+    folder_name = StringProperty("Videos")
+
+
+class VideoPlayerScreen(MDScreen):
+    video_name = StringProperty("Player")
+
+
+class VideoPlayerApp(MDApp):
+    video = None
+    current_folder = ""
+    current_video = ""
+    playlist = []
+    current_index = 0
+    video_position = NumericProperty(0)
+
+
+    def build(self):  
+        self.sm = Builder.load_string(KV)  
+        Clock.schedule_once(self.load_folders, 1)  
+        return self.sm  
+
+
+    def load_folders(self, *args):  
+        folder_screen = self.sm.get_screen("folders")  
+        folder_list = folder_screen.ids.folder_list  
+
+
+        search_path = "/storage/emulated/0/" if platform == "android" else os.path.expanduser("~")  
+
+
+        folders = [f for f in os.listdir(search_path) if os.path.isdir(os.path.join(search_path, f))]  
+        for f in folders:  
+            item = TwoLineAvatarListItem(  
+                text=f,  
+                secondary_text="Tap to open",  
+                on_release=lambda x, folder=f: self.open_folder(folder)  
+            )  
+            folder_list.add_widget(item)  
+
+
+    def open_folder(self, folder):  
+        self.current_folder = os.path.join("/storage/emulated/0/", folder) if platform == "android" else os.path.expanduser("~/" + folder)  
+        self.sm.current = "videos"  
+        video_screen = self.sm.get_screen("videos")  
+        video_screen.folder_name = folder  
+        video_list = video_screen.ids.video_list  
+        video_list.clear_widgets()  
+
+
+        if os.path.exists(self.current_folder):  
+            for file in os.listdir(self.current_folder):  
+                if file.lower().endswith((".mp4", ".avi", ".mkv", ".3gp")):  
+                    full_path = os.path.join(self.current_folder, file)  
+                    duration = self.get_duration(full_path)  
+                    thumb = self.get_thumbnail(full_path)  
+
+
+                    item = TwoLineAvatarListItem(  
+                        text=file,  
+                        secondary_text=f"Duration: {duration}",  
+                        on_release=lambda x, v=file: self.play_selected(v)  
+                    )  
+                    if thumb:  
+                        item.add_widget(ImageLeftWidget(source=thumb))  
+                    video_list.add_widget(item)  
+
+
+    def get_duration(self, video_path):  
+        try:  
+            info = ffprobe(video_path)  
+            seconds = float(info["duration"])  
+            m, s = divmod(int(seconds), 60)  
+            return f"{m:02d}:{s:02d}"  
+        except:  
+            return "??:??"  
+
+
+    def get_thumbnail(self, video_path):  
+        thumb_path = video_path + "_thumb.jpg"  
+        if not os.path.exists(thumb_path):  
+            try:  
+                player = MediaPlayer(video_path)  
+                player.set_pause(False)  
+                # jump to 1s
+                player.seek(1, relative=False)  
+                frame, val = player.get_frame()  
+                if frame is not None:  
+                    img, t = frame  
+                    arr = img.to_bytearray()[0]  
+                    w, h = img.get_size()  
+                    image = Image.frombytes("RGBA", (w, h), arr)  
+                    image = image.convert("RGB")  
+                    image.save(thumb_path, "JPEG")  
+                player.close_player()  
+            except Exception as e:  
+                print("Thumbnail error:", e)  
+                return None  
+        return thumb_path if os.path.exists(thumb_path) else None  
+
+
+    def play_selected(self, video):  
+        self.playlist = [v for v in os.listdir(self.current_folder) if v.lower().endswith((".mp4", ".avi", ".mkv", ".3gp"))]  
+        self.playlist.sort()  
+        self.current_index = self.playlist.index(video)  
+        self.start_video(video)  
+
+
+    def start_video(self, video):  
+        self.current_video = os.path.join(self.current_folder, video)  
+        self.sm.current = "player"  
+        player_screen = self.sm.get_screen("player")  
+        player_screen.video_name = video  
+
+
+        video_box = player_screen.ids.video_box  
+        video_box.clear_widgets()  
+
+
+        self.video = Video(source=self.current_video, state="play", options={"allow_stretch": True})  
+        self.video.bind(on_eos=lambda *x: self.play_next())  
+        self.video.bind(position=self.update_slider)  
+        video_box.add_widget(self.video)  
+
+
+        Clock.schedule_interval(self.update_slider_value, 0.5)  
+
+
+    def play_video(self):  
+        if self.video:  
+            self.video.state = "play"  
+
+
+    def pause_video(self):  
+        if self.video:  
+            self.video.state = "pause"  
+
+
+    def stop_video(self):  
+        if self.video:  
+            self.video.state = "stop"  
+
+
+    def toggle_fullscreen(self):  
+        Window.fullscreen = not Window.fullscreen  
+
+
+    def play_next(self, *args):  
+        if self.current_index + 1 < len(self.playlist):  
+            self.current_index += 1  
+            self.start_video(self.playlist[self.current_index])  
+
+
+    def play_previous(self):  
+        if self.current_index - 1 >= 0:  
+            self.current_index -= 1  
+            self.start_video(self.playlist[self.current_index])  
+
+
+    def update_slider(self, instance, value):  
+        screen = self.sm.get_screen("player")  
+        if self.video.duration > 0:  
+            screen.ids.slider.value = (self.video.position / self.video.duration) * 100  
+            screen.ids.current_time.text = self.format_time(self.video.position)  
+            screen.ids.total_time.text = self.format_time(self.video.duration)  
+
+
+    def update_slider_value(self, dt):  
+        if self.video and self.video.state == "play":  
+            screen = self.sm.get_screen("player")  
+            screen.ids.slider.value = (self.video.position / self.video.duration) * 100  
+            screen.ids.current_time.text = self.format_time(self.video.position)  
+            screen.ids.total_time.text = self.format_time(self.video.duration)  
+
+
+    def seek_video(self, instance, touch):  
+        screen = self.sm.get_screen("player")  
+        if instance.collide_point(*touch.pos) and self.video.duration > 0:  
+            self.video.position = (screen.ids.slider.value / 100) * self.video.duration  
+
+
+    def format_time(self, seconds):  
+        m, s = divmod(int(seconds), 60)  
+        return f"{m:02d}:{s:02d}"  
+
+
+    def go_back(self):  
+        if self.sm.current == "videos":  
+            self.sm.current = "folders"  
+        elif self.sm.current == "player":  
+            self.sm.current = "videos"
+
+
+if __name__ == "__main__":
+    VideoPlayerApp().run()
